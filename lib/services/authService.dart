@@ -1,4 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
 import 'package:train_alert/screens/model/userModel.dart';
 
 class AuthService {
@@ -16,9 +17,9 @@ class AuthService {
   }
 
   //sign in using email and password
-  Future signInUsingEmailAndPassword() async{
+  Future signInUsingEmailAndPassword(String email, String password) async{
     try{
-      UserCredential result = await _firebaseAuth.signInWithEmailAndPassword(email: "deeptha@mail.com", password: "123456");
+      UserCredential result = await _firebaseAuth.signInWithEmailAndPassword(email: email, password: password);
       User user = result.user;
       return _getuser(user);
     }catch(e){
@@ -31,6 +32,16 @@ class AuthService {
   Future googleSignIn() async{
     try{
       // UserCredential result = await _firebaseAuth.sign
+    }catch(e){
+      print(e.toString());
+      return null;
+    }
+  }
+
+  //sign out
+  Future signOut() async{
+    try{
+      return await _firebaseAuth.signOut();
     }catch(e){
       print(e.toString());
       return null;
