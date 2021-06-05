@@ -1,14 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:train_alert/services/authService.dart';
 import 'package:flutter/gestures.dart';
-import 'package:train_alert/screens/auth/signUp.dart';
 
-class SignIn extends StatefulWidget {
+class SignUp extends StatefulWidget {
   @override
-  _SignInState createState() => _SignInState();
+  _SignUpState createState() => _SignUpState();
 }
 
-class _SignInState extends State<SignIn> {
+class _SignUpState extends State<SignUp> {
   String _email;
   String _password;
   final AuthService _authService = AuthService();
@@ -37,7 +36,7 @@ class _SignInState extends State<SignIn> {
                             )),
                         Expanded(
                           child:
-                              Image(image: AssetImage('assets/images/logo.jpg')),
+                          Image(image: AssetImage('assets/images/logo.jpg')),
                         )
                       ],
                     ),
@@ -55,7 +54,7 @@ class _SignInState extends State<SignIn> {
                           if (value == null || value.isEmpty) {
                             return 'Field cannot be empty!';
                           }else if(!value.contains("@")){
-                            return 'Please enter an email address!';
+                            return 'Please enter a valid email address!';
                           }
                           return null;
                         },
@@ -91,20 +90,6 @@ class _SignInState extends State<SignIn> {
                         },
                       ),
                     ),
-                    SizedBox(height: 10.0,),
-                    Container(
-                      padding: EdgeInsets.only(left: 230.0),
-                        child: RichText(
-                      text: TextSpan(children: <TextSpan>[
-                        TextSpan(
-                            text: 'Forgot Password?',
-                            style: TextStyle(color: Colors.cyan),
-                            recognizer: TapGestureRecognizer()
-                              ..onTap = () {
-                                print('Terms of Service"');
-                              })
-                      ]),
-                    )),
                     SizedBox(
                       height: 20.0,
                     ),
@@ -115,8 +100,8 @@ class _SignInState extends State<SignIn> {
                             borderRadius: BorderRadius.all(Radius.circular(100.0)),
                           ),
                           minimumSize: Size(200, 60)),
-                      child: Text("Login",
-                      style: TextStyle(fontSize: 20.0),),
+                      child: Text("Sign Up",
+                        style: TextStyle(fontSize: 20.0),),
                       onPressed: () async {
                         if (_formKey.currentState.validate()) {
                           setState(() {
@@ -124,13 +109,17 @@ class _SignInState extends State<SignIn> {
                           });
                           var results = null;
                           results = await _authService
-                              .signInUsingEmailAndPassword(_email, _password);
+                              .signUpUsingEmailAndPassword(_email, _password);
                           if(results == null){
                             setState(() {
                               loading = false;
                             });
                             _showMyDialog();
-                            //error message
+                          }else{
+                            setState(() {
+                              loading = false;
+                            });
+                            Navigator.pop(context);
                           }
                         }
                       },
@@ -142,14 +131,11 @@ class _SignInState extends State<SignIn> {
                         child: RichText(
                           text: TextSpan(children: <TextSpan>[
                             TextSpan(
-                                text: 'New user? Register here',
+                                text: 'Already have an account? Login here',
                                 style: TextStyle(color: Colors.cyan,fontSize: 20.0,fontWeight: FontWeight.bold),
                                 recognizer: TapGestureRecognizer()
                                   ..onTap = () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(builder: (context) => SignUp()),
-                                  );
+                                    Navigator.pop(context);
                                   })
                           ]),
                         )),
@@ -167,7 +153,7 @@ class _SignInState extends State<SignIn> {
       barrierDismissible: false, // user must tap button!
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('Wrong Credentials!'),
+          title: const Text('Email is already in use!'),
           actions: <Widget>[
             ElevatedButton(
               child: const Text('Ok'),

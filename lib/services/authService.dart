@@ -28,6 +28,18 @@ class AuthService {
     }
   }
 
+  //sign up using email and password
+  Future signUpUsingEmailAndPassword(String email, String password) async{
+    try{
+      UserCredential result = await _firebaseAuth.createUserWithEmailAndPassword(email: email, password: password);
+      User user = result.user;
+      return _getuser(user);
+    }catch(e){
+      print(e.toString());
+      return null;
+    }
+  }
+
   //google sign in
   Future googleSignIn() async{
     try{
