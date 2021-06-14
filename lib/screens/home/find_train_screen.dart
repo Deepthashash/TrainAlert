@@ -89,6 +89,7 @@ class _FindTrainScreenState extends State<FindTrainScreen> {
   }
 
   // Method for retrieving the current location
+
   _getCurrentLocation() async {
     await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high)
         .then((Position position) async {
@@ -136,9 +137,6 @@ class _FindTrainScreenState extends State<FindTrainScreen> {
       List<Location> destinationPlacemark =
           await locationFromAddress(_destinationAddress);
 
-      // Use the retrieved coordinates of the current position,
-      // instead of the address if the start position is user's
-      // current position, as it results in better accuracy.
       double startLatitude = _startAddress == _currentAddress
           ? _currentPosition.latitude
           : startPlacemark[0].latitude;
@@ -187,8 +185,6 @@ class _FindTrainScreenState extends State<FindTrainScreen> {
         'DESTINATION COORDINATES: ($destinationLatitude, $destinationLongitude)',
       );
 
-      // Calculating to check that the position relative
-      // to the frame, and pan & zoom the camera accordingly.
       double miny = (startLatitude <= destinationLatitude)
           ? startLatitude
           : destinationLatitude;
@@ -208,8 +204,7 @@ class _FindTrainScreenState extends State<FindTrainScreen> {
       double northEastLatitude = maxy;
       double northEastLongitude = maxx;
 
-      // Accommodate the two locations within the
-      // camera view of the map
+  
       mapController.animateCamera(
         CameraUpdate.newLatLngBounds(
           LatLngBounds(
@@ -220,22 +215,12 @@ class _FindTrainScreenState extends State<FindTrainScreen> {
         ),
       );
 
-      // Calculating the distance between the start and the end positions
-      // with a straight path, without considering any route
-      // double distanceInMeters = await Geolocator.bearingBetween(
-      //   startLatitude,
-      //   startLongitude,
-      //   destinationLatitude,
-      //   destinationLongitude,
-      // );
 
       await _createPolylines(startLatitude, startLongitude, destinationLatitude,
           destinationLongitude);
 
       double totalDistance = 0.0;
 
-      // Calculating the total distance by adding the distance
-      // between small segments
       for (int i = 0; i < polylineCoordinates.length - 1; i++) {
         totalDistance += _coordinateDistance(
           polylineCoordinates[i].latitude,
@@ -257,8 +242,6 @@ class _FindTrainScreenState extends State<FindTrainScreen> {
     return false;
   }
 
-  // Formula for calculating distance between two coordinates
-  // https://stackoverflow.com/a/54138876/11910277
   double _coordinateDistance(lat1, lon1, lat2, lon2) {
     var p = 0.017453292519943295;
     var c = cos;
@@ -378,8 +361,7 @@ class _FindTrainScreenState extends State<FindTrainScreen> {
                 ),
               ),
             ),
-            // Show the place input fields & button for
-            // showing the route
+       
             SafeArea(
               child: Align(
                 alignment: Alignment.topCenter,
