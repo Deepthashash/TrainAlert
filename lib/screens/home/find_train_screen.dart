@@ -1,11 +1,18 @@
+import 'dart:collection';
 import 'dart:math';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_polyline_points/flutter_polyline_points.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:provider/provider.dart';
+import 'package:train_alert/cache/TrainData.dart';
+import 'package:train_alert/models/selectedTrainModel.dart';
+import 'package:train_alert/models/trainModel.dart';
 import 'package:train_alert/secrets.dart';
+import 'package:train_alert/services/trainService.dart';
 
 class FindTrainScreen extends StatefulWidget {
   const FindTrainScreen({key}) : super(key: key);
@@ -38,6 +45,9 @@ class _FindTrainScreenState extends State<FindTrainScreen> {
   List<LatLng> polylineCoordinates = [];
 
   final _scaffoldKey = GlobalKey<ScaffoldState>();
+
+  List<TrainModel> trains = [];
+  List<String> stations = ['04uqieJGZVboaeRp6YeK','07UvGGQfxc48jpVUih50','0sb1nE7HwgHAhvtx7vwW','1Zu4AlX7z04acTWreujR'];
 
   Widget _textField({
     TextEditingController controller,
@@ -217,7 +227,7 @@ class _FindTrainScreenState extends State<FindTrainScreen> {
 
 
       await _createPolylines(startLatitude, startLongitude, destinationLatitude,
-          destinationLongitude);
+          destinationLongitude, TravelMode.transit);
 
       double totalDistance = 0.0;
 
@@ -257,13 +267,14 @@ class _FindTrainScreenState extends State<FindTrainScreen> {
     double startLongitude,
     double destinationLatitude,
     double destinationLongitude,
+    TravelMode travelMode
   ) async {
     polylinePoints = PolylinePoints();
     PolylineResult result = await polylinePoints.getRouteBetweenCoordinates(
       Secrets.API_KEY, // Google Maps API Key
       PointLatLng(startLatitude, startLongitude),
       PointLatLng(destinationLatitude, destinationLongitude),
-      travelMode: TravelMode.transit,
+      travelMode: travelMode,
     );
 
     if (result.points.isNotEmpty) {
@@ -285,17 +296,144 @@ class _FindTrainScreenState extends State<FindTrainScreen> {
   @override
   void initState() {
     super.initState();
+    _initializeTrainData();
     _getCurrentLocation();
   }
+
+  _initializeTrainData(){
+    List<TrainModel> trainData = [];
+    FirebaseFirestore.instance
+        .collection('Trains')
+        .get()
+        .then((QuerySnapshot querySnapshot) {
+      querySnapshot.docs.forEach((doc) {
+        var model = TrainModel(id:doc["id"],train:doc["train"],origin:doc["origin"],destination:doc["destination"],stations:doc["stations"]);
+        trainData.add(model);
+      });
+      setState(() {
+        this.trains = trainData;
+      });
+    });
+  }
+
+  _getFastestTrain() async {
+    List<TrainModel> possibleTrains = [];
+    var origin = "07UvGGQfxc48jpVUih50";
+    var destination = "1Zu4AlX7z04acTWreujR";
+    List<SelectedTrainModel> mTrains = [];
+
+    this.trains.forEach((element) {
+      if(element.stations.contains(destination)){
+        possibleTrains.add(element);
+      }
+    });
+
+    if(possibleTrains.isNotEmpty){
+      //get all the trains that have this destination
+      //filter by (train_timestamp > current timestamp)
+      List<SelectedTrainModel> orderedMatchedTrains = [];
+      DateTime _now = DateTime.now();
+      DateTime _start = DateTime(_now.year, _now.month, _now.day, 0, 0);
+      int i = 0;
+      await Future.forEach(possibleTrains,(element) async {
+        i++;
+        Map map = new Map<dynamic, dynamic>();
+         //query
+        await FirebaseFirestore.instance
+            .collection('Trains')
+            .doc(element.id)
+            .collection('Stopping Stations')
+            // .where('stationid',isEqualTo: destination )
+            .where('time',isGreaterThan: _start)
+            .get()
+            .then((QuerySnapshot querySnapshot) {
+            querySnapshot.docs.forEach((doc) {
+              map.putIfAbsent(doc['stationid'], () => doc['time']);
+            });
+        }).whenComplete(() => {
+          if(map.isNotEmpty){
+            mTrains.add(SelectedTrainModel(id:element.id,train: element.train, stations: map))
+          }
+        });
+      });
+      //get the lowest timestamp
+      List<SelectedTrainModel> orderedByTimeStamp = [];
+      mTrains.forEach((element) {
+        if(!element.stations.containsKey(destination)){
+          mTrains.remove(element);
+        }
+      });
+      mTrains.sort((a,b) => a.stations[destination].compareTo(b.stations[destination]));
+
+      SelectedTrainModel finalTrain = null;
+      //if that is the train from origin end
+      for(int i=0; i < mTrains.length; i++ ){
+        if(mTrains[i].stations.containsKey(origin)){
+          finalTrain = mTrains[i];
+          break;
+        }else{
+          var next = stations.indexOf(origin);
+          if(mTrains[i].stations.containsKey(stations[++next])){
+            for(int j = i; j< mTrains.length; j++) {
+              if(mTrains[j].stations.containsKey(origin)){
+                //compare
+                // var xTrain = _coordinateDistance(station1 lat lon, station2 lat lon)/40
+                // va yTrain = (previousTimestamp-currentTimestamp)/60
+                //if(xTrain > yTrain) finalTrain = xTrain
+                // finalTrain = yTrain
+              }else{
+                //take this
+                finalTrain = mTrains[i];
+                break;
+              }
+            }
+          }else if(mTrains[i].stations.containsKey(stations[--next])){
+            for(int j = i; j< mTrains.length; j++) {
+              if(mTrains[j].stations.containsKey(origin)){
+                //compare
+                // var xTrain = _coordinateDistance(station1 lat lon, station2 lat lon)/40
+                // va yTrain = (previousTimestamp-currentTimestamp)/60
+                //if(xTrain > yTrain) finalTrain = xTrain
+                // finalTrain = yTrain
+              }else{
+                //take this
+                finalTrain = mTrains[i];
+                break;
+              }
+            }
+          }
+        }
+      }
+
+      if(finalTrain == null){
+        print("no train found");
+      }else{
+        print(finalTrain.train);
+      }
+      //else check whether the train stops in the +-station
+      //if not get the other or tell no trains
+      //else calculate time and compare
+
+    }
+
+  }
+
 
   @override
   Widget build(BuildContext context) {
     var height = MediaQuery.of(context).size.height;
     var width = MediaQuery.of(context).size.width;
+
+
     return Container(
       height: height,
       width: width,
       child: Scaffold(
+        floatingActionButton: FloatingActionButton(
+          onPressed: () => {
+            _getFastestTrain()
+          },
+        ),
         key: _scaffoldKey,
         body: Stack(
           children: <Widget>[

@@ -1,6 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:train_alert/screens/model/userModel.dart';
+import 'package:train_alert/models/userModel.dart';
 
 class AuthService {
 

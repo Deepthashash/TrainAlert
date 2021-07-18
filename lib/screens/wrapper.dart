@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:train_alert/screens/auth/auth.dart';
-import 'package:train_alert/screens/model/userModel.dart';
+import 'package:train_alert/models/userModel.dart';
 import 'home/home.dart';
 
 class Wrapper extends StatelessWidget {
