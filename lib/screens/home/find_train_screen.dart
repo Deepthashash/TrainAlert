@@ -366,44 +366,108 @@ class _FindTrainScreenState extends State<FindTrainScreen> {
       mTrains.sort((a,b) => a.stations[destination].compareTo(b.stations[destination]));
 
       SelectedTrainModel finalTrain = null;
-      //if that is the train from origin end
-      for(int i=0; i < mTrains.length; i++ ){
-        if(mTrains[i].stations.containsKey(origin)){
-          finalTrain = mTrains[i];
-          break;
-        }else{
-          var next = stations.indexOf(origin);
-          if(mTrains[i].stations.containsKey(stations[++next])){
-            for(int j = i; j< mTrains.length; j++) {
-              if(mTrains[j].stations.containsKey(origin)){
-                //compare
-                // var xTrain = _coordinateDistance(station1 lat lon, station2 lat lon)/40
-                // va yTrain = (previousTimestamp-currentTimestamp)/60
-                //if(xTrain > yTrain) finalTrain = xTrain
-                // finalTrain = yTrain
-              }else{
-                //take this
-                finalTrain = mTrains[i];
-                break;
+      SelectedTrainModel originTrain = null;
+      int endIndex = mTrains.length;
+
+      if(mTrains.length > 0){
+        for(int i=0; i < mTrains.length; i++ ) {
+          if (mTrains[i].stations.containsKey(origin)) {
+            originTrain = mTrains[i];
+            endIndex = i;
+            if(endIndex==0){
+              finalTrain = originTrain;
+            }
+            break;
+          }
+        }
+
+        if(finalTrain == null){
+          if(originTrain != null){
+            var current = stations.indexOf(origin);
+            var nextStation = stations[current+1];
+            var prevStation = stations[current-1];
+            var timeOriginTrain = originTrain.stations[destination].difference(originTrain.stations[origin]).inMinutes;
+            for(int i=0; i < endIndex; i++ ) {
+              if(mTrains[i].stations.containsKey(nextStation)){
+                var timeOtherTrain = mTrains[i].stations[destination].difference(mTrains[i].stations[nextStation]).inHours + _coordinateDistance(6.584116641918236, 79.95899519305465,6.235206820634703,80.05500014752478)/40;
+                if(timeOriginTrain > timeOtherTrain){
+                  finalTrain = mTrains[i];
+                  break;
+                }else{
+                  finalTrain = originTrain;
+                  break;
+                }
+              }else if(mTrains[i].stations.containsKey(prevStation)){
+                var timeOtherTrain = mTrains[i].stations[destination].difference(mTrains[i].stations[nextStation]).inHours + _coordinateDistance(6.584116641918236, 79.95899519305465,6.235206820634703,80.05500014752478)/40;
+                if(timeOriginTrain > timeOtherTrain){
+                  finalTrain = mTrains[i];
+                  break;
+                }else{
+                  finalTrain = originTrain;
+                  break;
+                }
               }
             }
-          }else if(mTrains[i].stations.containsKey(stations[--next])){
-            for(int j = i; j< mTrains.length; j++) {
-              if(mTrains[j].stations.containsKey(origin)){
-                //compare
-                // var xTrain = _coordinateDistance(station1 lat lon, station2 lat lon)/40
-                // va yTrain = (previousTimestamp-currentTimestamp)/60
-                //if(xTrain > yTrain) finalTrain = xTrain
-                // finalTrain = yTrain
-              }else{
-                //take this
-                finalTrain = mTrains[i];
-                break;
+          }else{
+            var current = stations.indexOf(origin);
+            var nextStation = stations[current+1];
+            var prevStation = stations[current-1];
+            for(int i=0; i < mTrains.length; i++ ) {
+              if(mTrains[i].stations.containsKey(nextStation)){
+                  finalTrain = mTrains[i];
+                  break;
+              }else if(mTrains[i].stations.containsKey(prevStation)){
+                  finalTrain = mTrains[i];
+                  break;
               }
             }
           }
         }
       }
+
+      // for(int i=0; i < mTrains.length; i++ ) {
+      //   if (mTrains[i].stations.containsKey(origin)) {
+      //     finalTrain = mTrains[i];
+      //     break;
+      //   }
+      // }
+      //   {
+      //     var next = stations.indexOf(origin);
+      //     var nextStation = stations[next+1];
+      //     if(mTrains[i].stations.containsKey(nextStation)){
+      //       for(int j = i; j< mTrains.length; j++) {
+      //         if(mTrains[j].stations.containsKey(origin)){
+      //           //compare
+      //           var timeOriginTrain = mTrains[j].stations[destination].difference(mTrains[j].stations[origin]).inMinutes;
+      //           var timeOtherTrain = mTrains[i].stations[destination].difference(mTrains[j].stations[nextStation]).inHours + _coordinateDistance(6.584116641918236, 79.95899519305465,6.235206820634703,80.05500014752478)/40;
+      //           if(timeOriginTrain > timeOtherTrain){
+      //             print(mTrains[j].train);
+      //           }else{
+      //             print(mTrains[i].train);
+      //           }
+      //         }else{
+      //           //take this
+      //           finalTrain = mTrains[i];
+      //           break;
+      //         }
+      //       }
+      //     }else if(mTrains[i].stations.containsKey(stations[--next])){
+      //       for(int j = i; j< mTrains.length; j++) {
+      //         if(mTrains[j].stations.containsKey(origin)){
+      //           //compare
+      //           // var xTrain = _coordinateDistance(station1 lat lon, station2 lat lon)/40
+      //           // va yTrain = (previousTimestamp-currentTimestamp)/60
+      //           //if(xTrain > yTrain) finalTrain = xTrain
+      //           // finalTrain = yTrain
+      //         }else{
+      //           //take this
+      //           finalTrain = mTrains[i];
+      //           break;
+      //         }
+      //       }
+      //     }
+      //   }
+      // }
 
       if(finalTrain == null){
         print("no train found");
