@@ -10,6 +10,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:train_alert/cache/TrainData.dart';
 import 'package:train_alert/models/selectedTrainModel.dart';
+import 'package:train_alert/models/stationModel.dart';
 import 'package:train_alert/models/trainModel.dart';
 import 'package:train_alert/secrets.dart';
 import 'package:train_alert/services/trainService.dart';
@@ -47,6 +48,7 @@ class _FindTrainScreenState extends State<FindTrainScreen> {
   final _scaffoldKey = GlobalKey<ScaffoldState>();
 
   List<TrainModel> trains = [];
+  List<StationModel> allStations = [];
   List<String> stations = ['04uqieJGZVboaeRp6YeK','07UvGGQfxc48jpVUih50','0sb1nE7HwgHAhvtx7vwW','1Zu4AlX7z04acTWreujR'];
 
   Widget _textField({
@@ -296,6 +298,7 @@ class _FindTrainScreenState extends State<FindTrainScreen> {
   @override
   void initState() {
     super.initState();
+    _initializeStationData();
     _initializeTrainData();
     _getCurrentLocation();
   }
@@ -316,11 +319,29 @@ class _FindTrainScreenState extends State<FindTrainScreen> {
     });
   }
 
+  _initializeStationData(){
+    List<StationModel> stationData = [];
+    FirebaseFirestore.instance
+        .collection('Train Stations')
+        .get()
+        .then((QuerySnapshot querySnapshot) {
+      querySnapshot.docs.forEach((doc) {
+        var model = StationModel(id:doc.id,name:doc["name"],timestamp:doc["timestamp"],geo_point:doc["geo_point"]);
+        print(model);
+        stationData.add(model);
+      });
+      setState(() {
+        this.allStations = stationData;
+      });
+    });
+  }
+
   _getFastestTrain() async {
     List<TrainModel> possibleTrains = [];
     var origin = "07UvGGQfxc48jpVUih50";
     var destination = "1Zu4AlX7z04acTWreujR";
     List<SelectedTrainModel> mTrains = [];
+    print(this.allStations.length.toString() + " station size");
 
     this.trains.forEach((element) {
       if(element.stations.contains(destination)){
@@ -386,24 +407,98 @@ class _FindTrainScreenState extends State<FindTrainScreen> {
             var current = stations.indexOf(origin);
             var nextStation = stations[current+1];
             var prevStation = stations[current-1];
-            var timeOriginTrain = originTrain.stations[destination].difference(originTrain.stations[origin]).inMinutes;
             for(int i=0; i < endIndex; i++ ) {
-              if(mTrains[i].stations.containsKey(nextStation)){
-                var timeOtherTrain = mTrains[i].stations[destination].difference(mTrains[i].stations[nextStation]).inHours + _coordinateDistance(6.584116641918236, 79.95899519305465,6.235206820634703,80.05500014752478)/40;
-                if(timeOriginTrain > timeOtherTrain){
-                  finalTrain = mTrains[i];
-                  break;
+              if(mTrains[i].stations.containsKey(prevStation) && mTrains[i].stations.containsKey(nextStation)){
+                int prevTime = null;
+                int nextTime = null;
+                if(nextStation != destination){
+                  var nextStationData = allStations.firstWhere((element) =>
+                  element.id == nextStation,
+                  orElse: () {
+                    return null;
+                  });
+                  var nextStationCordinate = nextStationData.geo_point;
+                  var originStationData =  allStations.firstWhere((element) =>
+                  element.id == origin,
+                      orElse: () {
+                        return null;
+                      });
+                  var originStationCordinate = originStationData.geo_point;
+                  nextTime = _coordinateDistance(originStationCordinate.latitude, originStationCordinate.longitude, nextStationCordinate.latitude, nextStationCordinate.longitude).round() * 3;
+                  print(nextTime.toString() + " nextllllllllllllllllllllllllllllllllllllllllllllllllllllllllll");
+                }
+                //get prev time
+                var prevStationData = allStations.firstWhere((element) =>
+                element.id == prevStation,
+                    orElse: () {
+                      return null;
+                    });
+                var prevStationCordinate = prevStationData.geo_point;
+                var originStationData =  allStations.firstWhere((element) =>
+                element.id == origin,
+                    orElse: () {
+                      return null;
+                    });
+                var originStationCordinate = originStationData.geo_point;
+                prevTime = _coordinateDistance(originStationCordinate.latitude, originStationCordinate.longitude, prevStationCordinate.latitude, prevStationCordinate.longitude).round() * 3;
+                print(prevTime.toString() + " prevllllllllllllllllllllllllllllllllllllllllllllllllllllllllll");
+                if(nextTime != null && (nextTime < prevTime)){
+                  //check for ability to arrive in time
+                  print(DateTime.parse(mTrains[i].stations[nextStation].toDate().toString()).difference(DateTime.now()).inMinutes.toString() + "fuck meeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee");
+                  if(nextTime < DateTime.parse(mTrains[i].stations[nextStation].toDate().toString()).difference(DateTime.now()).inMinutes){
+                    print("hi sexyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy");
+                    finalTrain = mTrains[i];
+                    break;
+                  }
+                  //else cannot catch the train
+                  continue;
                 }else{
-                  finalTrain = originTrain;
+                  //check for ability to arrive in time
+                  if(prevTime < DateTime.now().difference(DateTime.parse(mTrains[i].stations[prevStation].toDate().toString())).inMinutes){
+                    finalTrain = mTrains[i];
+                    break;
+                  }else if(nextTime != null && nextTime < DateTime.now().difference(DateTime.parse(mTrains[i].stations[nextStation].toDate().toString())).inMinutes) {
+                    finalTrain = mTrains[i];
+                    break;
+                  }
+                }
+
+              }else if(mTrains[i].stations.containsKey(prevStation)){
+                int prevTime = null;
+                var prevStationData = allStations.firstWhere((element) =>
+                element.id == prevStation,
+                    orElse: () {
+                      return null;
+                    });
+                var prevStationCordinate = prevStationData.geo_point;
+                var originStationData =  allStations.firstWhere((element) =>
+                element.id == origin,
+                    orElse: () {
+                      return null;
+                    });
+                var originStationCordinate = originStationData.geo_point;
+                prevTime = _coordinateDistance(originStationCordinate.latitude, originStationCordinate.longitude, prevStationCordinate.latitude, prevStationCordinate.longitude).round() * 3;
+                if(prevTime < DateTime.now().difference(DateTime.parse(mTrains[i].stations[prevStation].toDate().toString())).inMinutes){
+                  finalTrain = mTrains[i];
                   break;
                 }
-              }else if(mTrains[i].stations.containsKey(prevStation)){
-                var timeOtherTrain = mTrains[i].stations[destination].difference(mTrains[i].stations[nextStation]).inHours + _coordinateDistance(6.584116641918236, 79.95899519305465,6.235206820634703,80.05500014752478)/40;
-                if(timeOriginTrain > timeOtherTrain){
+              } else if(mTrains[i].stations.containsKey(nextStation)){
+                int nextTime = null;
+                var nextStationData = allStations.firstWhere((element) =>
+                element.id == nextStation,
+                    orElse: () {
+                      return null;
+                    });
+                var nextStationCordinate = nextStationData.geo_point;
+                var originStationData =  allStations.firstWhere((element) =>
+                element.id == origin,
+                    orElse: () {
+                      return null;
+                    });
+                var originStationCordinate = originStationData.geo_point;
+                nextTime = _coordinateDistance(originStationCordinate.latitude, originStationCordinate.longitude, nextStationCordinate.latitude, nextStationCordinate.longitude).round() * 3;
+                if(nextTime < DateTime.now().difference(DateTime.parse(mTrains[i].stations[nextStation].toDate().toString())).inMinutes){
                   finalTrain = mTrains[i];
-                  break;
-                }else{
-                  finalTrain = originTrain;
                   break;
                 }
               }
@@ -469,10 +564,14 @@ class _FindTrainScreenState extends State<FindTrainScreen> {
       //   }
       // }
 
-      if(finalTrain == null){
-        print("no train found");
-      }else{
+      if(finalTrain != null){
         print(finalTrain.train);
+      }else{
+        if(originTrain != null){
+          print(originTrain.train);
+        }else{
+          print("no train found");
+        }
       }
       //else check whether the train stops in the +-station
       //if not get the other or tell no trains
