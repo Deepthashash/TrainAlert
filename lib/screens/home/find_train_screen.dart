@@ -141,6 +141,28 @@ class _FindTrainScreenState extends State<FindTrainScreen> {
     }
   }
 
+  _getSpecificAddress(start, end) async {
+    try {
+      List<Placemark> p = await placemarkFromCoordinates(
+          start.latitude, start.longitude);
+
+      Placemark startLoc = p[0];
+
+      List<Placemark> d = await placemarkFromCoordinates(
+          end.latitude, end.longitude);
+
+      Placemark endLoc = d[0];
+
+      setState(() {
+        _startAddress = "${startLoc.name}, ${startLoc.locality}";
+        _destinationAddress = "${endLoc.name}, ${endLoc.locality}";
+      });
+
+    } catch (e) {
+      print(e);
+    }
+  }
+
   // Method for calculating the distance between two places
   Future<bool> _calculateDistance() async {
     try {
@@ -698,11 +720,15 @@ class _FindTrainScreenState extends State<FindTrainScreen> {
 
       if(finalTrain != null){
         print(finalTrain.train);
-        await _createPolylines(startStation.geo_point.latitude, startStation.geo_point.longitude, destinationStation.geo_point.latitude, destinationStation.geo_point.longitude, TravelMode.transit);
+        await _getSpecificAddress(startStation.geo_point, destinationStation.geo_point);
+        await _calculateDistance();
+        // await _createPolylines(startStation.geo_point.latitude, startStation.geo_point.longitude, destinationStation.geo_point.latitude, destinationStation.geo_point.longitude, TravelMode.transit);
       }else{
         if(originTrain != null){
           print(originTrain.train);
-          await _createPolylines(startStation.geo_point.latitude, startStation.geo_point.longitude, destinationStation.geo_point.latitude, destinationStation.geo_point.longitude, TravelMode.transit);
+          await _getSpecificAddress(startStation.geo_point, destinationStation.geo_point);
+          await _calculateDistance();
+          // await _createPolylines(startStation.geo_point.latitude, startStation.geo_point.longitude, destinationStation.geo_point.latitude, destinationStation.geo_point.longitude, TravelMode.transit);
         }else{
           print("no train found");
         }
