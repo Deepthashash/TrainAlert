@@ -11,6 +11,7 @@ import 'package:provider/provider.dart';
 import 'package:train_alert/cache/TrainData.dart';
 import 'package:train_alert/models/selectedTrainModel.dart';
 import 'package:train_alert/models/stationModel.dart';
+import 'package:train_alert/models/trainDistanceModel.dart';
 import 'package:train_alert/models/trainModel.dart';
 import 'package:train_alert/secrets.dart';
 import 'package:train_alert/services/trainService.dart';
@@ -49,7 +50,14 @@ class _FindTrainScreenState extends State<FindTrainScreen> {
 
   List<TrainModel> trains = [];
   List<StationModel> allStations = [];
-  List<String> stations = ['04uqieJGZVboaeRp6YeK','07UvGGQfxc48jpVUih50','0sb1nE7HwgHAhvtx7vwW','1Zu4AlX7z04acTWreujR'];
+  List<TrainDistanceModel> sortedStartStations = [];
+  List<TrainDistanceModel> sortedEndStations = [];
+
+  TrainDistanceModel finalStation = null;
+  SelectedTrainModel finalTrain = null;
+  String finalTrainName = '';
+  DateTime departureTime = null;
+  String nearestStation = '';
 
   Widget _textField({
     TextEditingController controller,
@@ -157,7 +165,7 @@ class _FindTrainScreenState extends State<FindTrainScreen> {
         _startAddress = "${startLoc.name}, ${startLoc.locality}";
         _destinationAddress = "${endLoc.name}, ${endLoc.locality}";
       });
-
+      _calculateDistance();
     } catch (e) {
       print(e);
     }
@@ -251,7 +259,7 @@ class _FindTrainScreenState extends State<FindTrainScreen> {
 
 
       await _createPolylines(startLatitude, startLongitude, destinationLatitude,
-          destinationLongitude, TravelMode.transit);
+          destinationLongitude, TravelMode.driving);
 
       double totalDistance = 0.0;
 
@@ -322,7 +330,8 @@ class _FindTrainScreenState extends State<FindTrainScreen> {
     super.initState();
     _initializeStationData();
     _initializeTrainData();
-    _getCurrentLocation();
+    // _getCurrentLocation();
+    this._startAddress = "Bandaranayake Mawatha, Moratuwa 10400";
   }
 
   _initializeTrainData(){
@@ -345,10 +354,12 @@ class _FindTrainScreenState extends State<FindTrainScreen> {
     List<StationModel> stationData = [];
     FirebaseFirestore.instance
         .collection('Train Stations')
+        .orderBy('id')
+        .limit(19)
         .get()
         .then((QuerySnapshot querySnapshot) {
       querySnapshot.docs.forEach((doc) {
-        var model = StationModel(id:doc.id,name:doc["name"],timestamp:doc["timestamp"],geo_point:doc["geo_point"]);
+        var model = StationModel(id:doc.id,xid:doc["id"],name:doc["name"],timestamp:doc["timestamp"],geo_point:doc["geo_point"]);
         print(model);
         stationData.add(model);
       });
@@ -358,12 +369,47 @@ class _FindTrainScreenState extends State<FindTrainScreen> {
     });
   }
 
+  _getNearestStartStation() async {
+    sortedStartStations = [];
+    //get lat and long from current location this is for mock
+    List<Location> startPlacemark = await locationFromAddress(_startAddress);
+    this.allStations.forEach((element) {
+      var distance = _coordinateDistance(startPlacemark[0].latitude, startPlacemark[0].longitude, element.geo_point.latitude, element.geo_point.longitude);
+      var time = distance.round() * 3;
+      var model = TrainDistanceModel(id: element.id, xid: element.xid, name: element.name, timestamp: element.timestamp, geo_point: element.geo_point, distance: distance, timeDuration: time);
+      sortedStartStations.add(model);
+    });
+    sortedStartStations.sort((a,b) => a.distance.compareTo(b.distance));
+    _getFastestTrain();
+    // _getSpecificAddress(startPlacemark[0],sortedStartStations[2].geo_point);
+    // printTra();
+  }
+
+  _getNearestEndStation() async {
+    sortedEndStations = [];
+    //get lat and long from current location this is for mock
+    List<Location> endPlacemark = await locationFromAddress(_destinationAddress);
+    this.allStations.forEach((element) {
+      var distance = _coordinateDistance(endPlacemark[0].latitude, endPlacemark[0].longitude, element.geo_point.latitude, element.geo_point.longitude);
+      var time = distance.round() * 3;
+      var model = TrainDistanceModel(id: element.id, xid: element.xid, name: element.name, timestamp: element.timestamp, geo_point: element.geo_point, distance: distance, timeDuration: time);
+      sortedEndStations.add(model);
+    });
+    sortedEndStations.sort((a,b) => a.distance.compareTo(b.distance));
+    _getNearestStartStation();
+  }
+
+  printTra(){
+    // allStations.forEach((element) {
+    //   print(element.xid);
+    // });
+    print(sortedEndStations[0].name);
+  }
+
   _getFastestTrain() async {
     List<TrainModel> possibleTrains = [];
-    var origin = "07UvGGQfxc48jpVUih50";
-    var destination = "1Zu4AlX7z04acTWreujR";
     List<SelectedTrainModel> mTrains = [];
-    print(this.allStations.length.toString() + " station size");
+    var destination = sortedEndStations[0].id;
 
     this.trains.forEach((element) {
       if(element.stations.contains(destination)){
@@ -386,7 +432,6 @@ class _FindTrainScreenState extends State<FindTrainScreen> {
             .collection('Trains')
             .doc(element.id)
             .collection('Stopping Stations')
-            // .where('stationid',isEqualTo: destination )
             .where('time',isGreaterThan: _start)
             .get()
             .then((QuerySnapshot querySnapshot) {
@@ -399,348 +444,66 @@ class _FindTrainScreenState extends State<FindTrainScreen> {
           }
         });
       });
-      //get the lowest timestamp
-      List<SelectedTrainModel> orderedByTimeStamp = [];
-      mTrains.forEach((element) {
-        if(!element.stations.containsKey(destination)){
-          mTrains.remove(element);
-        }
-      });
-      mTrains.sort((a,b) => a.stations[destination].compareTo(b.stations[destination]));
-
-      SelectedTrainModel finalTrain = null;
-      SelectedTrainModel originTrain = null;
-      StationModel startStation = null;
-      int endIndex = mTrains.length;
-
-      if(mTrains.length > 0){
-        for(int i=0; i < mTrains.length; i++ ) {
-          if (mTrains[i].stations.containsKey(origin)) {
-            originTrain = mTrains[i];
-            endIndex = i;
-            if(endIndex==0){
-              finalTrain = originTrain;
-              startStation = allStations.firstWhere((element) =>
-              element.id == origin,
-                  orElse: () {
-                    return null;
-                  });
-            }
-            break;
+      if(mTrains.isNotEmpty){
+        mTrains.forEach((element) {
+          if(!element.stations.containsKey(destination)){
+            mTrains.remove(element);
           }
-        }
+        });
+        mTrains.sort((a,b) => a.stations[destination].compareTo(b.stations[destination]));
 
-        if(finalTrain == null){
-          if(originTrain != null){
-            var current = stations.indexOf(origin);
-            var nextStation = stations[current+1];
-            var prevStation = stations[current-1];
-            for(int i=0; i < endIndex; i++ ) {
-              if(mTrains[i].stations.containsKey(prevStation) && mTrains[i].stations.containsKey(nextStation)){
-                int prevTime = null;
-                int nextTime = null;
-                if(nextStation != destination){
-                  var nextStationData = allStations.firstWhere((element) =>
-                  element.id == nextStation,
-                  orElse: () {
-                    return null;
-                  });
-                  var nextStationCordinate = nextStationData.geo_point;
-                  var originStationData =  allStations.firstWhere((element) =>
-                  element.id == origin,
-                      orElse: () {
-                        return null;
-                      });
-                  var originStationCordinate = originStationData.geo_point;
-                  nextTime = _coordinateDistance(originStationCordinate.latitude, originStationCordinate.longitude, nextStationCordinate.latitude, nextStationCordinate.longitude).round() * 3;
-                  print(nextTime.toString() + " nextllllllllllllllllllllllllllllllllllllllllllllllllllllllllll");
-                }
-                //get prev time
-                var prevStationData = allStations.firstWhere((element) =>
-                element.id == prevStation,
-                    orElse: () {
-                      return null;
-                    });
-                var prevStationCordinate = prevStationData.geo_point;
-                var originStationData =  allStations.firstWhere((element) =>
-                element.id == origin,
-                    orElse: () {
-                      return null;
-                    });
-                var originStationCordinate = originStationData.geo_point;
-                prevTime = _coordinateDistance(originStationCordinate.latitude, originStationCordinate.longitude, prevStationCordinate.latitude, prevStationCordinate.longitude).round() * 3;
-                print(prevTime.toString() + " prevllllllllllllllllllllllllllllllllllllllllllllllllllllllllll");
-                if(nextTime != null && (nextTime < prevTime)){
-                  //check for ability to arrive in time
-                  print(DateTime.parse(mTrains[i].stations[nextStation].toDate().toString()).difference(DateTime.now()).inMinutes.toString() + "fuck meeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee");
-                  if(nextTime < DateTime.parse(mTrains[i].stations[nextStation].toDate().toString()).difference(DateTime.now()).inMinutes){
-                    print("hi sexyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy");
-                    finalTrain = mTrains[i];
-                    startStation = allStations.firstWhere((element) =>
-                    element.id == nextStation,
-                        orElse: () {
-                          return null;
-                        });
-                    break;
-                  }
-                  //else cannot catch the train
-                  continue;
-                }else{
-                  //check for ability to arrive in time
-                  if(prevTime < DateTime.now().difference(DateTime.parse(mTrains[i].stations[prevStation].toDate().toString())).inMinutes){
-                    finalTrain = mTrains[i];
-                    startStation = allStations.firstWhere((element) =>
-                    element.id == prevStation,
-                        orElse: () {
-                          return null;
-                        });
-                    break;
-                  }else if(nextTime != null && nextTime < DateTime.now().difference(DateTime.parse(mTrains[i].stations[nextStation].toDate().toString())).inMinutes) {
-                    finalTrain = mTrains[i];
-                    startStation = allStations.firstWhere((element) =>
-                    element.id == nextStation,
-                        orElse: () {
-                          return null;
-                        });
-                    break;
-                  }
-                }
-
-              }else if(mTrains[i].stations.containsKey(prevStation)){
-                int prevTime = null;
-                var prevStationData = allStations.firstWhere((element) =>
-                element.id == prevStation,
-                    orElse: () {
-                      return null;
-                    });
-                var prevStationCordinate = prevStationData.geo_point;
-                var originStationData =  allStations.firstWhere((element) =>
-                element.id == origin,
-                    orElse: () {
-                      return null;
-                    });
-                var originStationCordinate = originStationData.geo_point;
-                prevTime = _coordinateDistance(originStationCordinate.latitude, originStationCordinate.longitude, prevStationCordinate.latitude, prevStationCordinate.longitude).round() * 3;
-                if(prevTime < DateTime.now().difference(DateTime.parse(mTrains[i].stations[prevStation].toDate().toString())).inMinutes){
-                  finalTrain = mTrains[i];
-                  startStation = prevStationData;
-                  break;
-                }
-              } else if(mTrains[i].stations.containsKey(nextStation)){
-                int nextTime = null;
-                var nextStationData = allStations.firstWhere((element) =>
-                element.id == nextStation,
-                    orElse: () {
-                      return null;
-                    });
-                var nextStationCordinate = nextStationData.geo_point;
-                var originStationData =  allStations.firstWhere((element) =>
-                element.id == origin,
-                    orElse: () {
-                      return null;
-                    });
-                var originStationCordinate = originStationData.geo_point;
-                nextTime = _coordinateDistance(originStationCordinate.latitude, originStationCordinate.longitude, nextStationCordinate.latitude, nextStationCordinate.longitude).round() * 3;
-                if(nextTime < DateTime.now().difference(DateTime.parse(mTrains[i].stations[nextStation].toDate().toString())).inMinutes){
-                  finalTrain = mTrains[i];
-                  startStation = nextStationData;
-                  break;
-                }
+        if(mTrains.length > 0) {
+          for (int i = 0; i < mTrains.length; i++) {
+            if (mTrains[i].stations.containsKey(sortedStartStations[0].id)) {
+              if (sortedStartStations[0].timeDuration < DateTime
+                  .parse(
+                  mTrains[i].stations[sortedStartStations[0].id].toDate().toString())
+                  .difference(DateTime.now())
+                  .inMinutes) {
+                finalTrain = mTrains[i];
+                finalStation = sortedStartStations[0];
+                break;
               }
             }
-          }else{
-            var current = stations.indexOf(origin);
-            var nextStation = stations[current+1];
-            var prevStation = stations[current-1];
-            for(int i=0; i < endIndex; i++ ) {
-              if(mTrains[i].stations.containsKey(prevStation) && mTrains[i].stations.containsKey(nextStation)){
-                int prevTime = null;
-                int nextTime = null;
-                if(nextStation != destination){
-                  var nextStationData = allStations.firstWhere((element) =>
-                  element.id == nextStation,
-                      orElse: () {
-                        return null;
-                      });
-                  var nextStationCordinate = nextStationData.geo_point;
-                  var originStationData =  allStations.firstWhere((element) =>
-                  element.id == origin,
-                      orElse: () {
-                        return null;
-                      });
-                  var originStationCordinate = originStationData.geo_point;
-                  nextTime = _coordinateDistance(originStationCordinate.latitude, originStationCordinate.longitude, nextStationCordinate.latitude, nextStationCordinate.longitude).round() * 3;
-                  print(nextTime.toString() + " nextllllllllllllllllllllllllllllllllllllllllllllllllllllllllll");
-                }
-                //get prev time
-                var prevStationData = allStations.firstWhere((element) =>
-                element.id == prevStation,
-                    orElse: () {
-                      return null;
-                    });
-                var prevStationCordinate = prevStationData.geo_point;
-                var originStationData =  allStations.firstWhere((element) =>
-                element.id == origin,
-                    orElse: () {
-                      return null;
-                    });
-                var originStationCordinate = originStationData.geo_point;
-                prevTime = _coordinateDistance(originStationCordinate.latitude, originStationCordinate.longitude, prevStationCordinate.latitude, prevStationCordinate.longitude).round() * 3;
-                print(prevTime.toString() + " prevllllllllllllllllllllllllllllllllllllllllllllllllllllllllll");
-                if(nextTime != null && (nextTime < prevTime)){
-                  //check for ability to arrive in time
-                  print(DateTime.parse(mTrains[i].stations[nextStation].toDate().toString()).difference(DateTime.now()).inMinutes.toString() + "fuck meeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee");
-                  if(nextTime < DateTime.parse(mTrains[i].stations[nextStation].toDate().toString()).difference(DateTime.now()).inMinutes){
-                    print("hi sexyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy");
-                    finalTrain = mTrains[i];
-                    startStation = allStations.firstWhere((element) =>
-                    element.id == nextStation,
-                        orElse: () {
-                          return null;
-                        });
-                    break;
-                  }
-                  //else cannot catch the train
-                  continue;
-                }else{
-                  //check for ability to arrive in time
-                  if(prevTime < DateTime.now().difference(DateTime.parse(mTrains[i].stations[prevStation].toDate().toString())).inMinutes){
-                    finalTrain = mTrains[i];
-                    startStation = allStations.firstWhere((element) =>
-                    element.id == prevStation,
-                        orElse: () {
-                          return null;
-                        });
-                    break;
-                  }else if(nextTime != null && nextTime < DateTime.now().difference(DateTime.parse(mTrains[i].stations[nextStation].toDate().toString())).inMinutes) {
-                    finalTrain = mTrains[i];
-                    startStation = allStations.firstWhere((element) =>
-                    element.id == nextStation,
-                        orElse: () {
-                          return null;
-                        });
-                    break;
-                  }
-                }
-
-              }else if(mTrains[i].stations.containsKey(prevStation)){
-                int prevTime = null;
-                var prevStationData = allStations.firstWhere((element) =>
-                element.id == prevStation,
-                    orElse: () {
-                      return null;
-                    });
-                var prevStationCordinate = prevStationData.geo_point;
-                var originStationData =  allStations.firstWhere((element) =>
-                element.id == origin,
-                    orElse: () {
-                      return null;
-                    });
-                var originStationCordinate = originStationData.geo_point;
-                prevTime = _coordinateDistance(originStationCordinate.latitude, originStationCordinate.longitude, prevStationCordinate.latitude, prevStationCordinate.longitude).round() * 3;
-                if(prevTime < DateTime.now().difference(DateTime.parse(mTrains[i].stations[prevStation].toDate().toString())).inMinutes){
-                  finalTrain = mTrains[i];
-                  startStation = prevStationData;
-                  break;
-                }
-              } else if(mTrains[i].stations.containsKey(nextStation)){
-                int nextTime = null;
-                var nextStationData = allStations.firstWhere((element) =>
-                element.id == nextStation,
-                    orElse: () {
-                      return null;
-                    });
-                var nextStationCordinate = nextStationData.geo_point;
-                var originStationData =  allStations.firstWhere((element) =>
-                element.id == origin,
-                    orElse: () {
-                      return null;
-                    });
-                var originStationCordinate = originStationData.geo_point;
-                nextTime = _coordinateDistance(originStationCordinate.latitude, originStationCordinate.longitude, nextStationCordinate.latitude, nextStationCordinate.longitude).round() * 3;
-                if(nextTime < DateTime.now().difference(DateTime.parse(mTrains[i].stations[nextStation].toDate().toString())).inMinutes){
-                  finalTrain = mTrains[i];
-                  startStation = nextStationData;
-                  break;
-                }
+            if (mTrains[i].stations.containsKey(sortedStartStations[1].id)) {
+              if (sortedStartStations[1].timeDuration < DateTime
+                  .parse(
+                  mTrains[i].stations[sortedStartStations[1].id].toDate().toString())
+                  .difference(DateTime.now())
+                  .inMinutes) {
+                finalTrain = mTrains[i];
+                finalStation = sortedStartStations[1];
+                break;
+              }
+            }
+            if (mTrains[i].stations.containsKey(sortedStartStations[2].id)) {
+              if (sortedStartStations[2].timeDuration < DateTime
+                  .parse(
+                  mTrains[i].stations[sortedStartStations[2].id].toDate().toString())
+                  .difference(DateTime.now())
+                  .inMinutes) {
+                finalTrain = mTrains[i];
+                finalStation = sortedStartStations[2];
+                break;
               }
             }
           }
         }
       }
+    }
 
-      // for(int i=0; i < mTrains.length; i++ ) {
-      //   if (mTrains[i].stations.containsKey(origin)) {
-      //     finalTrain = mTrains[i];
-      //     break;
-      //   }
-      // }
-      //   {
-      //     var next = stations.indexOf(origin);
-      //     var nextStation = stations[next+1];
-      //     if(mTrains[i].stations.containsKey(nextStation)){
-      //       for(int j = i; j< mTrains.length; j++) {
-      //         if(mTrains[j].stations.containsKey(origin)){
-      //           //compare
-      //           var timeOriginTrain = mTrains[j].stations[destination].difference(mTrains[j].stations[origin]).inMinutes;
-      //           var timeOtherTrain = mTrains[i].stations[destination].difference(mTrains[j].stations[nextStation]).inHours + _coordinateDistance(6.584116641918236, 79.95899519305465,6.235206820634703,80.05500014752478)/40;
-      //           if(timeOriginTrain > timeOtherTrain){
-      //             print(mTrains[j].train);
-      //           }else{
-      //             print(mTrains[i].train);
-      //           }
-      //         }else{
-      //           //take this
-      //           finalTrain = mTrains[i];
-      //           break;
-      //         }
-      //       }
-      //     }else if(mTrains[i].stations.containsKey(stations[--next])){
-      //       for(int j = i; j< mTrains.length; j++) {
-      //         if(mTrains[j].stations.containsKey(origin)){
-      //           //compare
-      //           // var xTrain = _coordinateDistance(station1 lat lon, station2 lat lon)/40
-      //           // va yTrain = (previousTimestamp-currentTimestamp)/60
-      //           //if(xTrain > yTrain) finalTrain = xTrain
-      //           // finalTrain = yTrain
-      //         }else{
-      //           //take this
-      //           finalTrain = mTrains[i];
-      //           break;
-      //         }
-      //       }
-      //     }
-      //   }
-      // }
-      var destinationStation = allStations.firstWhere((element) =>
-      element.id == destination,
-          orElse: () {
-            return null;
-          });
-
-      if(finalTrain != null){
-        print(finalTrain.train);
-        await _getSpecificAddress(startStation.geo_point, destinationStation.geo_point);
-        await _calculateDistance();
-        // await _createPolylines(startStation.geo_point.latitude, startStation.geo_point.longitude, destinationStation.geo_point.latitude, destinationStation.geo_point.longitude, TravelMode.transit);
-      }else{
-        if(originTrain != null){
-          print(originTrain.train);
-          await _getSpecificAddress(startStation.geo_point, destinationStation.geo_point);
-          await _calculateDistance();
-          // await _createPolylines(startStation.geo_point.latitude, startStation.geo_point.longitude, destinationStation.geo_point.latitude, destinationStation.geo_point.longitude, TravelMode.transit);
-        }else{
-          print("no train found");
-        }
-      }
-      //else check whether the train stops in the +-station
-      //if not get the other or tell no trains
-      //else calculate time and compare
-
+    if(finalStation == null){
+      print("no train found");
+    }else{
+      print(finalTrain.train);
+      finalTrainName = finalTrain.train.toUpperCase();
+      departureTime = finalTrain.stations[finalStation.id].toDate();
+      nearestStation = finalStation.name.toUpperCase();
+      List<Location> endPlacemark = await locationFromAddress(_startAddress);
+      _getSpecificAddress(finalStation.geo_point,endPlacemark[0]);
     }
 
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -754,7 +517,7 @@ class _FindTrainScreenState extends State<FindTrainScreen> {
       child: Scaffold(
         floatingActionButton: FloatingActionButton(
           onPressed: () => {
-            _getFastestTrain()
+            _getNearestEndStation()
           },
         ),
         key: _scaffoldKey,
@@ -880,9 +643,42 @@ class _FindTrainScreenState extends State<FindTrainScreen> {
                               }),
                           SizedBox(height: 10),
                           Visibility(
-                            visible: _placeDistance == null ? false : true,
+                            visible: finalTrain == null ? false : true,
                             child: Text(
-                              'DISTANCE: $_placeDistance km',
+                              'Fastest Train: $finalTrainName',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                          SizedBox(height: 10),
+                          Visibility(
+                            visible: finalTrain == null ? false : true,
+                            child: Text(
+                              'Departure Time: $departureTime',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                          SizedBox(height: 10),
+                          Visibility(
+                            visible: finalTrain == null ? false : true,
+                            child: Text(
+                              'Nearest Station:',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                          SizedBox(height: 10),
+                          Visibility(
+                            visible: finalTrain == null ? false : true,
+                            child: Text(
+                              '$nearestStation',
                               style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
@@ -905,32 +701,32 @@ class _FindTrainScreenState extends State<FindTrainScreen> {
                                         polylineCoordinates.clear();
                                       _placeDistance = null;
                                     });
-
-                                    _calculateDistance().then((isCalculated) {
-                                      if (isCalculated) {
-                                        ScaffoldMessenger.of(context)
-                                            .showSnackBar(
-                                          SnackBar(
-                                            content: Text(
-                                                'Distance Calculated Sucessfully'),
-                                          ),
-                                        );
-                                      } else {
-                                        ScaffoldMessenger.of(context)
-                                            .showSnackBar(
-                                          SnackBar(
-                                            content: Text(
-                                                'Error Calculating Distance'),
-                                          ),
-                                        );
-                                      }
-                                    });
+                                    _getNearestEndStation();
+                                    // _calculateDistance().then((isCalculated) {
+                                    //   if (isCalculated) {
+                                    //     ScaffoldMessenger.of(context)
+                                    //         .showSnackBar(
+                                    //       SnackBar(
+                                    //         content: Text(
+                                    //             'Distance Calculated Sucessfully'),
+                                    //       ),
+                                    //     );
+                                    //   } else {
+                                    //     ScaffoldMessenger.of(context)
+                                    //         .showSnackBar(
+                                    //       SnackBar(
+                                    //         content: Text(
+                                    //             'Error Calculating Distance'),
+                                    //       ),
+                                    //     );
+                                    //   }
+                                    // });
                                   }
                                 : null,
                             child: Padding(
                               padding: const EdgeInsets.all(8.0),
                               child: Text(
-                                'Show Route'.toUpperCase(),
+                                'Find Train'.toUpperCase(),
                                 style: TextStyle(
                                   color: Colors.white,
                                   fontSize: 20.0,
