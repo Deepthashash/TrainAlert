@@ -330,8 +330,7 @@ class _FindTrainScreenState extends State<FindTrainScreen> {
     super.initState();
     _initializeStationData();
     _initializeTrainData();
-    // _getCurrentLocation();
-    this._startAddress = "Bandaranayake Mawatha, Moratuwa 10400";
+    _getCurrentLocation();
   }
 
   _initializeTrainData(){
