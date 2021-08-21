@@ -15,6 +15,7 @@ import 'package:train_alert/models/trainDistanceModel.dart';
 import 'package:train_alert/models/trainModel.dart';
 import 'package:train_alert/secrets.dart';
 import 'package:train_alert/services/trainService.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class FindTrainScreen extends StatefulWidget {
   const FindTrainScreen({key}) : super(key: key);
@@ -53,11 +54,19 @@ class _FindTrainScreenState extends State<FindTrainScreen> {
   List<TrainDistanceModel> sortedStartStations = [];
   List<TrainDistanceModel> sortedEndStations = [];
 
-  TrainDistanceModel finalStation = null;
-  SelectedTrainModel finalTrain = null;
-  String finalTrainName = '';
-  DateTime departureTime = null;
-  String nearestStation = '';
+  List<TrainDistanceModel> finalStations = [];
+  List<SelectedTrainModel> finalTrains = [];
+  String finalTrainName1 = '';
+  String departureTime1 = '';
+  String nearestStation1 = '';
+  String finalTrainName2 = '';
+  String departureTime2 = '';
+  String nearestStation2 = '';
+  String finalTrainName3 = '';
+  String departureTime3 = '';
+  String nearestStation3 = '';
+
+  bool isVisble = false;
 
   Widget _textField({
     TextEditingController controller,
@@ -328,9 +337,9 @@ class _FindTrainScreenState extends State<FindTrainScreen> {
   @override
   void initState() {
     super.initState();
+    _getCurrentLocation();
     _initializeStationData();
     _initializeTrainData();
-    _getCurrentLocation();
   }
 
   _initializeTrainData(){
@@ -459,9 +468,11 @@ class _FindTrainScreenState extends State<FindTrainScreen> {
                   mTrains[i].stations[sortedStartStations[0].id].toDate().toString())
                   .difference(DateTime.now())
                   .inMinutes) {
-                finalTrain = mTrains[i];
-                finalStation = sortedStartStations[0];
-                break;
+                finalTrains.add(mTrains[i]);
+                finalStations.add(sortedStartStations[0]);
+                if(finalTrains.length > 2){
+                  break;
+                }
               }
             }
             if (mTrains[i].stations.containsKey(sortedStartStations[1].id)) {
@@ -470,9 +481,11 @@ class _FindTrainScreenState extends State<FindTrainScreen> {
                   mTrains[i].stations[sortedStartStations[1].id].toDate().toString())
                   .difference(DateTime.now())
                   .inMinutes) {
-                finalTrain = mTrains[i];
-                finalStation = sortedStartStations[1];
-                break;
+                finalTrains.add(mTrains[i]);
+                finalStations.add(sortedStartStations[1]);
+                if(finalTrains.length > 2){
+                  break;
+                }
               }
             }
             if (mTrains[i].stations.containsKey(sortedStartStations[2].id)) {
@@ -481,9 +494,11 @@ class _FindTrainScreenState extends State<FindTrainScreen> {
                   mTrains[i].stations[sortedStartStations[2].id].toDate().toString())
                   .difference(DateTime.now())
                   .inMinutes) {
-                finalTrain = mTrains[i];
-                finalStation = sortedStartStations[2];
-                break;
+                finalTrains.add(mTrains[i]);
+                finalStations.add(sortedStartStations[2]);
+                if(finalTrains.length > 2){
+                  break;
+                }
               }
             }
           }
@@ -491,17 +506,36 @@ class _FindTrainScreenState extends State<FindTrainScreen> {
       }
     }
 
-    if(finalStation == null){
-      print("no train found");
+    if(finalStations.length == 0){
+      setState(() {
+        isVisble = true;
+      });
     }else{
-      print(finalTrain.train);
-      finalTrainName = finalTrain.train.toUpperCase();
-      departureTime = finalTrain.stations[finalStation.id].toDate();
-      nearestStation = finalStation.name.toUpperCase();
-      List<Location> endPlacemark = await locationFromAddress(_startAddress);
-      _getSpecificAddress(finalStation.geo_point,endPlacemark[0]);
+      setState(() {
+        print(finalStations[0].name.toUpperCase());
+        finalTrainName1 = finalTrains[0].train.toUpperCase();
+        departureTime1 = finalTrains[0].stations[finalStations[0].id].toDate().toString();
+        nearestStation1 = finalStations[0].name.toUpperCase();
+      });
+      if(finalStations.length > 1){
+        setState(() {
+          finalTrainName1 = finalTrains[1].train.toUpperCase();
+          departureTime1 = finalTrains[1].stations[finalStations[1].id].toDate().toString();
+          nearestStation1 = finalStations[1].name.toUpperCase();
+        });
+      }
+      if(finalStations.length > 2){
+        setState(() {
+          finalTrainName1 = finalTrains[2].train.toUpperCase();
+          departureTime1 = finalTrains[2].stations[finalStations[2].id].toDate().toString();
+          nearestStation1 = finalStations[2].name.toUpperCase();
+        });
+      }
+      // List<Location> endPlacemark = await locationFromAddress(_startAddress);
+      // _getSpecificAddress(finalStation.geo_point,endPlacemark[0]);
     }
-
+      // MapUtils.openMap(sortedStartStations[0].geo_point.latitude,
+      //     sortedStartStations[0].geo_point.longitude);
   }
 
   @override
@@ -514,11 +548,6 @@ class _FindTrainScreenState extends State<FindTrainScreen> {
       height: height,
       width: width,
       child: Scaffold(
-        floatingActionButton: FloatingActionButton(
-          onPressed: () => {
-            _getNearestEndStation()
-          },
-        ),
         key: _scaffoldKey,
         body: Stack(
           children: <Widget>[
@@ -607,26 +636,26 @@ class _FindTrainScreenState extends State<FindTrainScreen> {
                             'Places',
                             style: TextStyle(fontSize: 20.0),
                           ),
-                          SizedBox(height: 10),
-                          _textField(
-                              label: 'Start',
-                              hint: 'Choose starting point',
-                              prefixIcon: Icon(Icons.looks_one),
-                              suffixIcon: IconButton(
-                                icon: Icon(Icons.my_location),
-                                onPressed: () {
-                                  startAddressController.text = _currentAddress;
-                                  _startAddress = _currentAddress;
-                                },
-                              ),
-                              controller: startAddressController,
-                              focusNode: startAddressFocusNode,
-                              width: width,
-                              locationCallback: (String value) {
-                                setState(() {
-                                  _startAddress = value;
-                                });
-                              }),
+                          // SizedBox(height: 10),
+                          // _textField(
+                          //     label: 'Start',
+                          //     hint: 'Choose starting point',
+                          //     prefixIcon: Icon(Icons.looks_one),
+                          //     suffixIcon: IconButton(
+                          //       icon: Icon(Icons.my_location),
+                          //       onPressed: () {
+                          //         startAddressController.text = _currentAddress;
+                          //         _startAddress = _currentAddress;
+                          //       },
+                          //     ),
+                          //     controller: startAddressController,
+                          //     focusNode: startAddressFocusNode,
+                          //     width: width,
+                          //     locationCallback: (String value) {
+                          //       setState(() {
+                          //         _startAddress = value;
+                          //       });
+                          //     }),
                           SizedBox(height: 10),
                           _textField(
                               label: 'Destination',
@@ -642,45 +671,60 @@ class _FindTrainScreenState extends State<FindTrainScreen> {
                               }),
                           SizedBox(height: 10),
                           Visibility(
-                            visible: finalTrain == null ? false : true,
-                            child: Text(
-                              'Fastest Train: $finalTrainName',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
+                            visible: isVisble,
+                            child: Text("No Train Found",style: TextStyle(color: Colors.red),),
+                          ),
+                          Visibility(
+                            visible: finalTrainName1 == '' ? false : true,
+                            child: SizedBox(
+                              width: 300,
+                              child: Card(
+                                child: ListTile(
+                                  title: Text(finalTrainName1),
+                                  subtitle: Text( nearestStation1 + '\n' + departureTime1),
+                                  isThreeLine: true,
+                                  trailing: Icon(Icons.open_in_new_outlined),
+                                  onTap: () {
+                                    MapUtils.openMap(finalStations[0].geo_point.latitude,
+                                        finalStations[0].geo_point.longitude);
+                                  },
+                                ),
                               ),
                             ),
                           ),
-                          SizedBox(height: 10),
                           Visibility(
-                            visible: finalTrain == null ? false : true,
-                            child: Text(
-                              'Departure Time: $departureTime',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
+                            visible: finalTrainName2 == '' ? false : true,
+                            child: SizedBox(
+                              width: 300,
+                              child: Card(
+                                child: ListTile(
+                                  title: Text(finalTrainName2),
+                                  subtitle: Text( nearestStation2 + '\n' + departureTime2),
+                                  isThreeLine: true,
+                                  trailing: Icon(Icons.open_in_new_outlined),
+                                  onTap: () {
+                                    MapUtils.openMap(finalStations[1].geo_point.latitude,
+                                        finalStations[1].geo_point.longitude);
+                                  },
+                                ),
                               ),
                             ),
                           ),
-                          SizedBox(height: 10),
                           Visibility(
-                            visible: finalTrain == null ? false : true,
-                            child: Text(
-                              'Nearest Station:',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                          SizedBox(height: 10),
-                          Visibility(
-                            visible: finalTrain == null ? false : true,
-                            child: Text(
-                              '$nearestStation',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
+                            visible: finalTrainName3 == '' ? false : true,
+                            child: SizedBox(
+                              width: 300,
+                              child: Card(
+                                child: ListTile(
+                                  title: Text(finalTrainName3),
+                                  subtitle: Text( nearestStation3 + '\n' + departureTime3),
+                                  isThreeLine: true,
+                                  trailing: Icon(Icons.open_in_new_outlined),
+                                  onTap: () {
+                                    MapUtils.openMap(finalStations[2].geo_point.latitude,
+                                        finalStations[2].geo_point.longitude);
+                                  },
+                                ),
                               ),
                             ),
                           ),
@@ -701,25 +745,6 @@ class _FindTrainScreenState extends State<FindTrainScreen> {
                                       _placeDistance = null;
                                     });
                                     _getNearestEndStation();
-                                    // _calculateDistance().then((isCalculated) {
-                                    //   if (isCalculated) {
-                                    //     ScaffoldMessenger.of(context)
-                                    //         .showSnackBar(
-                                    //       SnackBar(
-                                    //         content: Text(
-                                    //             'Distance Calculated Sucessfully'),
-                                    //       ),
-                                    //     );
-                                    //   } else {
-                                    //     ScaffoldMessenger.of(context)
-                                    //         .showSnackBar(
-                                    //       SnackBar(
-                                    //         content: Text(
-                                    //             'Error Calculating Distance'),
-                                    //       ),
-                                    //     );
-                                    //   }
-                                    // });
                                   }
                                 : null,
                             child: Padding(
@@ -785,5 +810,19 @@ class _FindTrainScreenState extends State<FindTrainScreen> {
         ),
       ),
     );
+  }
+}
+
+class MapUtils {
+
+  MapUtils._();
+
+  static Future<void> openMap(double latitude, double longitude) async {
+    String googleUrl = 'https://www.google.com/maps/search/?api=1&query=$latitude,$longitude';
+    if (await canLaunch(googleUrl)) {
+      await launch(googleUrl);
+    } else {
+      throw 'Could not open the map.';
+    }
   }
 }
