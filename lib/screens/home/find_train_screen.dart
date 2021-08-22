@@ -668,31 +668,37 @@ class _FindTrainScreenState extends State<FindTrainScreen> {
                           //         _startAddress = value;
                           //       });
                           //     }),
-                        DropdownButton<StationModel>(
-                          value: dropdownValue,
-                          icon: const Icon(Icons.arrow_downward),
-                          iconSize: 24,
-                          elevation: 16,
-                          isExpanded: false,
-                          hint: Text('Select End Station'),
-                          // style: const TextStyle(color: Colors.deepPurple),
-                          // underline: Container(
-                          //   height: 2,
-                          //   color: Colors.deepPurpleAccent,
-                          // ),
-                          onChanged: (StationModel newValue) {
-                            setState(() {
-                              dropdownValue = newValue;
-                              _getSpecificAddress(newValue.geo_point);
-                            });
-                          },
-                          items: allStations
-                              .map<DropdownMenuItem<StationModel>>((StationModel value) {
-                            return DropdownMenuItem<StationModel>(
-                              value: value,
-                              child: Text(value.name),
-                            );
-                          }).toList(),
+                        Container(
+                          padding: const EdgeInsets.only(left: 10.0, right: 10.0),
+                          decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(10.0),
+                              border: Border.all()),
+                          child: DropdownButton<StationModel>(
+                            value: dropdownValue,
+                            icon: const Icon(Icons.arrow_downward),
+                            iconSize: 24,
+                            elevation: 16,
+                            isExpanded: false,
+                            hint: Text('Select End Station'),
+                            // style: const TextStyle(color: Colors.deepPurple),
+                            // underline: Container(
+                            //   height: 2,
+                            //   color: Colors.deepPurpleAccent,
+                            // ),
+                            onChanged: (StationModel newValue) {
+                              setState(() {
+                                dropdownValue = newValue;
+                                _getSpecificAddress(newValue.geo_point);
+                              });
+                            },
+                            items: allStations
+                                .map<DropdownMenuItem<StationModel>>((StationModel value) {
+                              return DropdownMenuItem<StationModel>(
+                                value: value,
+                                child: Text(value.name),
+                              );
+                            }).toList(),
+                          ),
                         ),
                           // SizedBox(height: 10),
                           // _textField(
