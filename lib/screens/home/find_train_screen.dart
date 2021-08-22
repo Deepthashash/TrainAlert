@@ -30,6 +30,7 @@ class _FindTrainScreenState extends State<FindTrainScreen> {
 
   Position _currentPosition;
   String _currentAddress = '';
+  StationModel dropdownValue = null;
 
   final startAddressController = TextEditingController();
   final destinationAddressController = TextEditingController();
@@ -158,12 +159,12 @@ class _FindTrainScreenState extends State<FindTrainScreen> {
     }
   }
 
-  _getSpecificAddress(start, end) async {
+  _getSpecificAddress(end) async {
     try {
-      List<Placemark> p = await placemarkFromCoordinates(
-          start.latitude, start.longitude);
+      // List<Placemark> p = await placemarkFromCoordinates(
+      //     start.latitude, start.longitude);
 
-      Placemark startLoc = p[0];
+      // Placemark startLoc = p[0];
 
       List<Placemark> d = await placemarkFromCoordinates(
           end.latitude, end.longitude);
@@ -171,10 +172,9 @@ class _FindTrainScreenState extends State<FindTrainScreen> {
       Placemark endLoc = d[0];
 
       setState(() {
-        _startAddress = "${startLoc.name}, ${startLoc.locality}";
+        // _startAddress = "${startLoc.name}, ${startLoc.locality}";
         _destinationAddress = "${endLoc.name}, ${endLoc.locality}";
       });
-      _calculateDistance();
     } catch (e) {
       print(e);
     }
@@ -509,9 +509,11 @@ class _FindTrainScreenState extends State<FindTrainScreen> {
     if(finalStations.length == 0){
       setState(() {
         isVisble = true;
+        _clearFields();
       });
     }else{
       setState(() {
+        isVisble = false;
         print(finalStations[0].name.toUpperCase());
         finalTrainName1 = finalTrains[0].train.toUpperCase();
         departureTime1 = finalTrains[0].stations[finalStations[0].id].toDate().toString();
@@ -531,13 +533,23 @@ class _FindTrainScreenState extends State<FindTrainScreen> {
           nearestStation1 = finalStations[2].name.toUpperCase();
         });
       }
-      // List<Location> endPlacemark = await locationFromAddress(_startAddress);
-      // _getSpecificAddress(finalStation.geo_point,endPlacemark[0]);
     }
-      // MapUtils.openMap(sortedStartStations[0].geo_point.latitude,
-      //     sortedStartStations[0].geo_point.longitude);
   }
 
+  _clearFields(){
+    isVisble = true;
+    finalTrainName1 = '';
+    departureTime1 = '';
+    nearestStation1 = '';
+    finalTrainName2 = '';
+    departureTime2 = '';
+    nearestStation2 = '';
+    finalTrainName3 = '';
+    departureTime3 = '';
+    nearestStation3 = '';
+    finalStations = [];
+    finalTrains = [];
+  }
   @override
   Widget build(BuildContext context) {
     var height = MediaQuery.of(context).size.height;
@@ -633,10 +645,10 @@ class _FindTrainScreenState extends State<FindTrainScreen> {
                         mainAxisSize: MainAxisSize.min,
                         children: <Widget>[
                           Text(
-                            'Places',
-                            style: TextStyle(fontSize: 20.0),
+                            'Find Fastest Train',
+                            style: TextStyle(fontSize: 25.0, fontWeight:FontWeight.bold),
                           ),
-                          // SizedBox(height: 10),
+                          SizedBox(height: 10),
                           // _textField(
                           //     label: 'Start',
                           //     hint: 'Choose starting point',
@@ -656,24 +668,55 @@ class _FindTrainScreenState extends State<FindTrainScreen> {
                           //         _startAddress = value;
                           //       });
                           //     }),
-                          SizedBox(height: 10),
-                          _textField(
-                              label: 'Destination',
-                              hint: 'Choose destination',
-                              prefixIcon: Icon(Icons.looks_two),
-                              controller: destinationAddressController,
-                              focusNode: desrinationAddressFocusNode,
-                              width: width,
-                              locationCallback: (String value) {
-                                setState(() {
-                                  _destinationAddress = value;
-                                });
-                              }),
+                        DropdownButton<StationModel>(
+                          value: dropdownValue,
+                          icon: const Icon(Icons.arrow_downward),
+                          iconSize: 24,
+                          elevation: 16,
+                          isExpanded: false,
+                          hint: Text('Select End Station'),
+                          // style: const TextStyle(color: Colors.deepPurple),
+                          // underline: Container(
+                          //   height: 2,
+                          //   color: Colors.deepPurpleAccent,
+                          // ),
+                          onChanged: (StationModel newValue) {
+                            setState(() {
+                              dropdownValue = newValue;
+                              _getSpecificAddress(newValue.geo_point);
+                            });
+                          },
+                          items: allStations
+                              .map<DropdownMenuItem<StationModel>>((StationModel value) {
+                            return DropdownMenuItem<StationModel>(
+                              value: value,
+                              child: Text(value.name),
+                            );
+                          }).toList(),
+                        ),
+                          // SizedBox(height: 10),
+                          // _textField(
+                          //     label: 'Destination',
+                          //     hint: 'Choose destination',
+                          //     prefixIcon: Icon(Icons.looks_two),
+                          //     controller: destinationAddressController,
+                          //     focusNode: desrinationAddressFocusNode,
+                          //     width: width,
+                          //     locationCallback: (String value) {
+                          //       setState(() {
+                          //         _destinationAddress = value;
+                          //       });
+                          //     }),
                           SizedBox(height: 10),
                           Visibility(
                             visible: isVisble,
-                            child: Text("No Train Found",style: TextStyle(color: Colors.red),),
+                            child: Text("No Train Found",style: TextStyle(fontSize: 15.0, color: Colors.red),),
                           ),
+                          Visibility(
+                            visible: finalTrainName1 == '' ? false : true,
+                            child: Text("Select the Preferred Train",style: TextStyle(fontSize: 15.0,fontWeight: FontWeight.bold),),
+                          ),
+                          SizedBox(height: 5),
                           Visibility(
                             visible: finalTrainName1 == '' ? false : true,
                             child: SizedBox(
@@ -737,6 +780,7 @@ class _FindTrainScreenState extends State<FindTrainScreen> {
                                     startAddressFocusNode.unfocus();
                                     desrinationAddressFocusNode.unfocus();
                                     setState(() {
+                                      _clearFields();
                                       if (markers.isNotEmpty) markers.clear();
                                       if (polylines.isNotEmpty)
                                         polylines.clear();
