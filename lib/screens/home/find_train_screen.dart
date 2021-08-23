@@ -152,7 +152,7 @@ class _FindTrainScreenState extends State<FindTrainScreen> {
       setState(() {
         _currentAddress = "${place.name}, ${place.locality}";
         startAddressController.text = _currentAddress;
-        _startAddress = _currentAddress;
+        _startAddress = "University of Moratuwa";
       });
     } catch (e) {
       print(e);
@@ -394,16 +394,16 @@ class _FindTrainScreenState extends State<FindTrainScreen> {
   }
 
   _getNearestEndStation() async {
-    sortedEndStations = [];
-    //get lat and long from current location this is for mock
-    List<Location> endPlacemark = await locationFromAddress(_destinationAddress);
-    this.allStations.forEach((element) {
-      var distance = _coordinateDistance(endPlacemark[0].latitude, endPlacemark[0].longitude, element.geo_point.latitude, element.geo_point.longitude);
-      var time = distance.round() * 3;
-      var model = TrainDistanceModel(id: element.id, xid: element.xid, name: element.name, timestamp: element.timestamp, geo_point: element.geo_point, distance: distance, timeDuration: time);
-      sortedEndStations.add(model);
-    });
-    sortedEndStations.sort((a,b) => a.distance.compareTo(b.distance));
+    // sortedEndStations = [];
+    // //get lat and long from current location this is for mock
+    // List<Location> endPlacemark = await locationFromAddress(_destinationAddress);
+    // this.allStations.forEach((element) {
+    //   var distance = _coordinateDistance(endPlacemark[0].latitude, endPlacemark[0].longitude, element.geo_point.latitude, element.geo_point.longitude);
+    //   var time = distance.round() * 3;
+    //   var model = TrainDistanceModel(id: element.id, xid: element.xid, name: element.name, timestamp: element.timestamp, geo_point: element.geo_point, distance: distance, timeDuration: time);
+    //   sortedEndStations.add(model);
+    // });
+    // sortedEndStations.sort((a,b) => a.distance.compareTo(b.distance));
     _getNearestStartStation();
   }
 
@@ -411,13 +411,15 @@ class _FindTrainScreenState extends State<FindTrainScreen> {
     // allStations.forEach((element) {
     //   print(element.xid);
     // });
-    print(sortedEndStations[0].name);
+    print(this.trains.length.toString() + " no of trains");
   }
 
   _getFastestTrain() async {
     List<TrainModel> possibleTrains = [];
     List<SelectedTrainModel> mTrains = [];
-    var destination = sortedEndStations[0].id;
+    var destination = dropdownValue.id;
+
+    print(destination + " destination");
 
     this.trains.forEach((element) {
       if(element.stations.contains(destination)){
@@ -425,6 +427,7 @@ class _FindTrainScreenState extends State<FindTrainScreen> {
       }
     });
 
+    print(possibleTrains.length.toString() + "inside");
     if(possibleTrains.isNotEmpty){
       //get all the trains that have this destination
       //filter by (train_timestamp > current timestamp)
@@ -459,8 +462,8 @@ class _FindTrainScreenState extends State<FindTrainScreen> {
           }
         });
         mTrains.sort((a,b) => a.stations[destination].compareTo(b.stations[destination]));
-
         if(mTrains.length > 0) {
+
           for (int i = 0; i < mTrains.length; i++) {
             if (mTrains[i].stations.containsKey(sortedStartStations[0].id)) {
               if (sortedStartStations[0].timeDuration < DateTime
