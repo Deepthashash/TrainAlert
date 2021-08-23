@@ -152,7 +152,7 @@ class _FindTrainScreenState extends State<FindTrainScreen> {
       setState(() {
         _currentAddress = "${place.name}, ${place.locality}";
         startAddressController.text = _currentAddress;
-        _startAddress = "University of Moratuwa";
+        _startAddress = _currentAddress;
       });
     } catch (e) {
       print(e);
