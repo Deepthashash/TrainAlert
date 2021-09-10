@@ -337,6 +337,7 @@ class _FindTrainScreenState extends State<FindTrainScreen> {
   @override
   void initState() {
     super.initState();
+    _startAddress = "University of Moratuwa";
     _getCurrentLocation();
     _initializeStationData();
     _initializeTrainData();
@@ -524,16 +525,16 @@ class _FindTrainScreenState extends State<FindTrainScreen> {
       });
       if(finalStations.length > 1){
         setState(() {
-          finalTrainName1 = finalTrains[1].train.toUpperCase();
-          departureTime1 = finalTrains[1].stations[finalStations[1].id].toDate().toString();
-          nearestStation1 = finalStations[1].name.toUpperCase();
+          finalTrainName2 = finalTrains[1].train.toUpperCase();
+          departureTime2 = finalTrains[1].stations[finalStations[1].id].toDate().toString();
+          nearestStation2 = finalStations[1].name.toUpperCase();
         });
       }
       if(finalStations.length > 2){
         setState(() {
-          finalTrainName1 = finalTrains[2].train.toUpperCase();
-          departureTime1 = finalTrains[2].stations[finalStations[2].id].toDate().toString();
-          nearestStation1 = finalStations[2].name.toUpperCase();
+          finalTrainName3 = finalTrains[2].train.toUpperCase();
+          departureTime3 = finalTrains[2].stations[finalStations[2].id].toDate().toString();
+          nearestStation3 = finalStations[2].name.toUpperCase();
         });
       }
     }
