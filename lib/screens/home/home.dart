@@ -2,11 +2,13 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:train_alert/screens/home/find_train_screen.dart';
 import 'package:train_alert/screens/home/train_schedule.dart';
+import 'package:train_alert/screens/home/trains_and_stations.dart';
 import 'package:train_alert/screens/home/user_profile.dart';
 import 'package:train_alert/services/authService.dart';
 
 class Home extends StatelessWidget {
   final AuthService _authService = AuthService();
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -59,7 +61,12 @@ class Home extends StatelessWidget {
                   )),
                   Expanded(
                       child: GestureDetector(
-                    onTap: () {},
+                    onTap: () {
+                      Navigator.push(
+                          context,
+                          (MaterialPageRoute(
+                              builder: (context) => TrainsAndStations())));
+                    },
                     child: CustomCard(
                       title: "View Trains",
                       subTitle: 'View trains and their status',
@@ -73,12 +80,12 @@ class Home extends StatelessWidget {
                 children: [
                   Expanded(
                       child: GestureDetector(
-                        onTap: () {
-                          Navigator.push(
-                              context,
-                              (MaterialPageRoute(
-                                  builder: (context) => TrainSchedule())));
-                        },
+                    onTap: () {
+                      Navigator.push(
+                          context,
+                          (MaterialPageRoute(
+                              builder: (context) => TrainSchedule())));
+                    },
                     child: CustomCard(
                       title: "Train Schedule",
                       subTitle: 'Find Trains by time and date',
@@ -88,12 +95,12 @@ class Home extends StatelessWidget {
                   )),
                   Expanded(
                       child: GestureDetector(
-                        onTap: () {
-                          Navigator.push(
-                              context,
-                              (MaterialPageRoute(
-                                  builder: (context) => UserProfile())));
-                        },
+                    onTap: () {
+                      Navigator.push(
+                          context,
+                          (MaterialPageRoute(
+                              builder: (context) => UserProfile())));
+                    },
                     child: CustomCard(
                       title: "Profile",
                       subTitle: 'View/Update profile',

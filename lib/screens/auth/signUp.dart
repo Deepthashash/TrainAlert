@@ -25,20 +25,9 @@ class _SignUpState extends State<SignUp> {
                 key: _formKey,
                 child: Column(
                   children: [
-                    Row(
-                      children: [
-                        Container(
-                            width: 250.0,
-                            child: Text(
-                              "Smart Train Finder",
-                              style: TextStyle(
-                                  fontSize: 30.0, fontWeight: FontWeight.bold),
-                            )),
-                        Expanded(
-                          child:
-                          Image(image: AssetImage('assets/images/logo.jpg')),
-                        )
-                      ],
+                    Container(
+                      child:
+                      Image(image: AssetImage('assets/images/logo.jpg')),
                     ),
                     SizedBox(
                       height: 40.0,

@@ -7,14 +7,11 @@ import 'package:flutter_polyline_points/flutter_polyline_points.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:provider/provider.dart';
-import 'package:train_alert/cache/TrainData.dart';
 import 'package:train_alert/models/selectedTrainModel.dart';
 import 'package:train_alert/models/stationModel.dart';
 import 'package:train_alert/models/trainDistanceModel.dart';
 import 'package:train_alert/models/trainModel.dart';
 import 'package:train_alert/secrets.dart';
-import 'package:train_alert/services/trainService.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:intl/intl.dart';
 
@@ -338,7 +335,6 @@ class _FindTrainScreenState extends State<FindTrainScreen> {
   @override
   void initState() {
     super.initState();
-    // _startAddress = "University of Colombo";
     _getCurrentLocation();
     _initializeStationData();
     _initializeTrainData();
