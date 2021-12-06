@@ -338,6 +338,7 @@ class _FindTrainScreenState extends State<FindTrainScreen> {
   @override
   void initState() {
     super.initState();
+    // _startAddress = "University of Colombo";
     _getCurrentLocation();
     _initializeStationData();
     _initializeTrainData();
